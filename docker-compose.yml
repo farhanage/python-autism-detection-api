@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  autism-detection-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=../model/best_model.safetensors
+    volumes:
+      - ./model:/app/model:ro  # Mount model directory as read-only
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
