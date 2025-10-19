@@ -12,6 +12,23 @@ from safetensors.torch import load_file
 import torchvision.transforms as transforms
 import uvicorn
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    load_model()
+    yield
+    # Shutdown (optional cleanup)
+
+app = FastAPI(
+    title="Autism Detection API",
+    description="API for autism detection using deep learning model",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
 
 # Response models for better OpenAPI documentation
 class PredictionResult(BaseModel):
@@ -25,19 +42,10 @@ class PredictionResponse(BaseModel):
     filename: str
     prediction: PredictionResult
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Autism Detection API",
-    description="API for autism detection using deep learning model",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
-)
-
 # Add CORS middleware to allow file uploads from web interfaces
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # React ports
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -141,12 +149,6 @@ def predict_image(image_tensor: torch.Tensor) -> Dict:
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during prediction: {str(e)}")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Load model on startup"""
-    load_model()
 
 
 @app.get("/")

@@ -5,8 +5,6 @@ services:
     build: .
     ports:
       - "8000:8000"
-    environment:
-      - MODEL_PATH=../model/best_model.safetensors
     volumes:
       - ./model:/app/model:ro  # Mount model directory as read-only
     restart: unless-stopped
