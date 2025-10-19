@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from PIL import Image
 import timm
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from safetensors.torch import load_file
@@ -48,9 +48,6 @@ async def lifespan(app: FastAPI):
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
-# Documentation endpoints
-DOCS_URLS = {"/docs", "/redoc", "/openapi.json"}
-
 app = FastAPI(
     title="Autism Detection API",
     description="API for autism detection using deep learning model",
@@ -89,8 +86,9 @@ async def add_security_headers(request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     
     # Relaxed CSP for docs endpoints, strict for API
-    if request.url.path in DOCS_URLS:
-        # Allow Swagger UI and ReDoc to load from CDN
+    path = request.url.path
+    if path.startswith("/docs") or path.startswith("/redoc") or path == "/openapi.json":
+        # Allow Swagger UI and ReDoc to load from CDN - no CSP restriction
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' https://fastapi.tiangolo.com data:; connect-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com"
     else:
         # Strict CSP for API endpoints
@@ -245,7 +243,7 @@ async def health_check():
           response_description="Prediction results with confidence scores",
           response_model=PredictionResponse)
 @limiter.limit("10/minute")
-async def predict_autism(request, file: UploadFile = File(
+async def predict_autism(request: Request, file: UploadFile = File(
     description="Image file (JPEG, PNG, etc.)"
 )):
     """
