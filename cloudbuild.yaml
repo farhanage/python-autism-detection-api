@@ -1,0 +1,40 @@
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/python-autism-detection-api:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/python-autism-detection-api:latest'
+      - '.'
+
+  # Push the Docker image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/python-autism-detection-api:$SHORT_SHA'
+
+  # Deploy to Cloud Run with environment variables
+  - name: 'gcr.io/cloud-builders/cloud-run'
+    args:
+      - 'deploy'
+      - 'python-autism-detection-api'
+      - '--image=gcr.io/$PROJECT_ID/python-autism-detection-api:$SHORT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=4Gi'
+      - '--cpu=2'
+      - '--timeout=3600'
+      - '--set-env-vars=HOST=0.0.0.0,PORT=8080,ALLOWED_ORIGINS=${_ALLOWED_ORIGINS},MAX_FILE_SIZE=${_MAX_FILE_SIZE}'
+
+# Substitution variables (can be overridden in Cloud Build Trigger UI)
+substitutions:
+  _ALLOWED_ORIGINS: 'https://yourdomain.com,http://localhost:3000'
+  _MAX_FILE_SIZE: '524288000'  # 500 MB in bytes
+
+# Build options
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY

@@ -48,6 +48,9 @@ async def lifespan(app: FastAPI):
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
+# Documentation endpoints
+DOCS_URLS = {"/docs", "/redoc", "/openapi.json"}
+
 app = FastAPI(
     title="Autism Detection API",
     description="API for autism detection using deep learning model",
@@ -84,7 +87,15 @@ async def add_security_headers(request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' https://fastapi.tiangolo.com"
+    
+    # Relaxed CSP for docs endpoints, strict for API
+    if request.url.path in DOCS_URLS:
+        # Allow Swagger UI and ReDoc to load from CDN
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' https://fastapi.tiangolo.com data:; connect-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com"
+    else:
+        # Strict CSP for API endpoints
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
+    
     return response
 
 # Add CORS middleware to allow file uploads from web interfaces
