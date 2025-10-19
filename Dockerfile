@@ -32,6 +32,6 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-EXPOSE 8000
+EXPOSE 8080
 
-CMD ["python", "app/main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

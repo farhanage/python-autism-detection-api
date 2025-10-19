@@ -28,15 +28,22 @@ logger = logging.getLogger(__name__)
 
 # Security settings
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 10 * 1024 * 1024))  # 10 MB default
-HOST = os.getenv("HOST", "localhost")
-PORT = int(os.getenv("PORT", 8000))
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", 8080))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    load_model()
+    logger.info("Starting application...")
+    try:
+        load_model()
+        logger.info("Application startup complete")
+    except Exception as e:
+        logger.error(f"Failed to load model during startup: {e}", exc_info=True)
+        # Don't raise - allow app to start with lazy loading
     yield
     # Shutdown (optional cleanup)
+    logger.info("Application shutdown")
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -118,23 +125,27 @@ def load_model():
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {device}")
         logger.info(f"Model path: {MODEL_PATH}")
-        logger.info(f"Model file exists: {os.path.exists(MODEL_PATH)}")
+        
+        if not os.path.exists(MODEL_PATH):
+            logger.warning(f"Model file not found at {MODEL_PATH}")
+            logger.warning("Model will be loaded on first request (lazy loading)")
+            return False
+        
+        logger.info(f"Loading model from {MODEL_PATH}...")
         
         # Create the same model architecture as in training
         model = timm.create_model("tf_efficientnet_b5", pretrained=False, num_classes=2)
         
         # Load the trained weights
-        if os.path.exists(MODEL_PATH):
-            tensors = load_file(MODEL_PATH)
-            model.load_state_dict(tensors)
-            model = model.to(device)
-            model.eval()
-            logger.info("Model loaded successfully!")
-        else:
-            raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+        tensors = load_file(MODEL_PATH)
+        model.load_state_dict(tensors)
+        model = model.to(device)
+        model.eval()
+        logger.info("Model loaded successfully!")
+        return True
     except Exception as e:
-        logger.error(f"Error loading model: {e}")
-        raise e
+        logger.error(f"Error loading model: {e}", exc_info=True)
+        return False
 
 
 def preprocess_image(image: Image.Image) -> torch.Tensor:
