@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 # Install uv
 RUN pip install uv
 
-COPY pyproject.toml requirements.txt* .
+COPY pyproject.toml requirements.txt* ./
 RUN uv pip install --system -r requirements.txt
 
 COPY app/ ./app/
